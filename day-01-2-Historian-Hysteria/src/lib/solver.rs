@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 /// # Panics
 ///
 /// Will panic if:
@@ -9,19 +11,28 @@ pub fn extract_numbers(line: &str) -> (i32, i32) {
     (first_number, last_number)
 }
 
-fn get_distance(pair: (i32, i32)) -> i32 {
-    let (a, b) = pair;
-    (a - b).abs()
+fn list_to_occurrences(list: Vec<i32>) -> HashMap<i32, i32> {
+    let mut occurrences = HashMap::new();
+    for number in list {
+        let count = occurrences.entry(number).or_insert(0);
+        *count += 1;
+    }
+    occurrences
 }
 
 pub fn process_lines<T>(lines: T) -> String
 where
     T: Iterator<Item = String>,
 {
-    let mut list: (Vec<i32>, Vec<i32>) = lines.map(|line| extract_numbers(&line)).unzip();
-    list.0.sort_unstable();
-    list.1.sort_unstable();
-
-    let sum_of_distances: i32 = list.0.into_iter().zip(list.1).map(get_distance).sum();
-    sum_of_distances.to_string()
+    let (left_list, right_list): (Vec<i32>, Vec<i32>) =
+        lines.map(|line| extract_numbers(&line)).unzip();
+    let right_list = list_to_occurrences(right_list);
+    let sum_of_similarity_scores: i32 = left_list
+        .into_iter()
+        .map(|number| {
+            let count = right_list.get(&number).unwrap_or(&0);
+            number * count
+        })
+        .sum();
+    sum_of_similarity_scores.to_string()
 }
