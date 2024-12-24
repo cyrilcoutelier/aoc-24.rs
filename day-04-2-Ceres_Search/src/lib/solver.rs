@@ -1,19 +1,11 @@
 use crate::common::{self, ISolver};
 
-const SEARCHED_WORD: [char; 4] = ['X', 'M', 'A', 'S'];
+const FIRST_CHAR: char = 'A';
+const CHARS_SEQUENCE: [char; 4] = ['M', 'M', 'S', 'S'];
 
 type Coordinate = (i32, i32);
 
-const VECTORS: [Coordinate; 8] = [
-    (-1, -1),
-    (-1, 0),
-    (-1, 1),
-    (0, -1),
-    (0, 1),
-    (1, -1),
-    (1, 0),
-    (1, 1),
-];
+const POSITIONS_SEQUENCE: [Coordinate; 4] = [(-1, 1), (1, 1), (1, -1), (-1, -1)];
 
 fn add_coordinates(a: Coordinate, b: Coordinate) -> Coordinate {
     let (x1, y1) = a;
@@ -36,30 +28,38 @@ impl Solver {
         let mut matches = 0;
         for y in 0..height {
             for x in 0..width {
-                matches += self.get_matches_at_position((x, y));
+                if self.test_position((x, y)) {
+                    matches += 1;
+                }
             }
         }
         matches
     }
 
-    fn get_matches_at_position(&self, position: Coordinate) -> usize {
-        VECTORS
-            .iter()
-            .filter(|&vector| self.test_word(position, *vector))
-            .count()
+    fn test_position(&self, position: Coordinate) -> bool {
+        let Some(letter) = self.get_letter(position) else {
+            return false;
+        };
+        if letter != FIRST_CHAR {
+            return false;
+        }
+
+        (0..CHARS_SEQUENCE.len()).any(|index| self.test_combination(position, index))
     }
 
-    fn test_word(&self, mut position: Coordinate, vector: Coordinate) -> bool {
-        for &searched_letter in &SEARCHED_WORD {
-            let Some(letter) = self.get_letter(position) else {
-                return false;
-            };
-            if letter != searched_letter {
-                return false;
-            }
-            position = add_coordinates(position, vector);
-        }
-        true
+    fn test_combination(&self, origin: Coordinate, shift: usize) -> bool {
+        POSITIONS_SEQUENCE
+            .iter()
+            .enumerate()
+            .all(|(index, vector)| {
+                let letter_index = (index + shift) % CHARS_SEQUENCE.len();
+                let searched_letter = CHARS_SEQUENCE[letter_index];
+                let position = add_coordinates(origin, *vector);
+                let Some(letter) = self.get_letter(position) else {
+                    return false;
+                };
+                letter == searched_letter
+            })
     }
 
     fn get_letter(&self, position: Coordinate) -> Option<char> {
