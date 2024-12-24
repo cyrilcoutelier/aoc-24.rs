@@ -5,11 +5,11 @@ use std::iter::Map;
 use std::path::Path;
 
 pub trait ISolver {
-    fn process_line(&self, line: &str);
-    fn get_result(&self) -> String;
+    fn process_line(&mut self, line: &str);
+    fn get_result(&mut self) -> String;
 }
 
-pub fn process_lines<I, S>(lines: I, solver: &S) -> String
+pub fn process_lines<I, S>(lines: I, mut solver: S) -> String
 where
     I: Iterator<Item = String>,
     S: ISolver,
