@@ -32,7 +32,7 @@ impl GreaterLower {
     }
 }
 
-struct Report {
+pub struct Report {
     list: Vec<i32>,
 }
 
@@ -44,7 +44,7 @@ impl Report {
     pub fn is_safe(&self) -> bool {
         let comparator = self.get_comparator();
         match comparator {
-            Some(comparator) => self.test_adjacent(|left, right| {
+            Some(comparator) => self.test_adjacent_naive(|left, right| {
                 comparator(left, right) && is_adjacent_diff_acceptable(left, right)
             }),
             None => false,
@@ -73,8 +73,48 @@ impl Report {
             })
     }
 
-    fn test_adjacent<F: Fn(i32, i32) -> bool>(&self, callback: F) -> bool {
-        is_list_safe(&self.list, &callback)
+    // Naive implementation, but only take 8ms..
+    fn test_adjacent_naive<F: Fn(i32, i32) -> bool>(&self, is_adjacent_acceptable: F) -> bool {
+        if is_list_safe(&self.list, &is_adjacent_acceptable) {
+            return true;
+        }
+
+        let nb_elements = self.list.len();
+        (0..nb_elements).any(|index| {
+            let mut list = self.list.clone();
+            list.remove(index);
+            is_list_safe(&list, &is_adjacent_acceptable)
+        })
+    }
+
+    /// Not working in some edge cases
+    fn _test_adjacent_smart<F: Fn(i32, i32) -> bool>(&self, is_adjacent_acceptable: F) -> bool {
+        let mut previous_value: Option<i32> = None;
+        let mut has_removed = false;
+        let nb_elements = self.list.len();
+
+        self.list
+            .windows(2)
+            .enumerate()
+            .all(|(index, w): (usize, &[i32])| {
+                if is_adjacent_acceptable(w[0], w[1]) {
+                    previous_value = Some(w[0]);
+                    return true;
+                }
+                if has_removed {
+                    return false;
+                }
+                has_removed = true;
+                if index == nb_elements - 2 {
+                    // We can just ditch the last element of the list
+                    return true;
+                }
+                if let Some(previous_value) = previous_value {
+                    return is_adjacent_acceptable(previous_value, w[1]);
+                }
+                // We can just ditch the first element of the list
+                true
+            })
     }
 }
 
