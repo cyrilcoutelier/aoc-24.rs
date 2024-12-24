@@ -6,12 +6,13 @@ use crate::common::{self, ISolver};
 const MAX_DIGIT: usize = 3;
 const MUL_HEADER: &str = "mul";
 const MUL_HEADER_LEN: usize = MUL_HEADER.len();
+const DO_HEADER: &str = "do()";
+const DO_NO_HEADER: &str = "don't()";
 
 #[derive(PartialEq, Eq, Debug)]
 struct Instruction {
     index: usize,
-    left: i32,
-    right: i32,
+    payload: Payload,
 }
 
 impl Ord for Instruction {
@@ -24,6 +25,13 @@ impl PartialOrd for Instruction {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.index.cmp(&other.index))
     }
+}
+
+#[derive(Eq, PartialEq, Debug)]
+enum Payload {
+    Do,
+    DoNot,
+    Mul(i32, i32),
 }
 
 fn try_parse_mul(mut input: &str, index: usize) -> Option<Instruction> {
@@ -55,10 +63,14 @@ fn try_parse_mul(mut input: &str, index: usize) -> Option<Instruction> {
     }
     let right = right_number.parse().unwrap();
 
-    Some(Instruction { index, left, right })
+    Some(Instruction {
+        index,
+        payload: Payload::Mul(left, right),
+    })
 }
 
 struct Parser {
+    is_enabled: bool,
     result: i32,
     instructions: Cell<BTreeSet<Instruction>>,
 }
@@ -66,6 +78,7 @@ struct Parser {
 impl Parser {
     fn new() -> Self {
         Self {
+            is_enabled: true,
             result: 0,
             instructions: Cell::new(BTreeSet::new()),
         }
@@ -83,14 +96,42 @@ impl Parser {
             });
     }
 
+    fn parse_do_instructions(&mut self, input: &str) {
+        input.match_indices(DO_HEADER).for_each(|(idx, _)| {
+            self.instructions.get_mut().insert(Instruction {
+                index: idx,
+                payload: Payload::Do,
+            });
+        });
+    }
+
+    fn parse_dont_instructions(&mut self, input: &str) {
+        input.match_indices(DO_NO_HEADER).for_each(|(idx, _)| {
+            self.instructions.get_mut().insert(Instruction {
+                index: idx,
+                payload: Payload::DoNot,
+            });
+        });
+    }
+
     fn process_instruction(&mut self, instruction: &Instruction) {
-        self.result += instruction.left * instruction.right;
+        match instruction.payload {
+            Payload::Do => self.is_enabled = true,
+            Payload::DoNot => self.is_enabled = false,
+            Payload::Mul(left, right) => {
+                if self.is_enabled {
+                    self.result += left * right;
+                }
+            }
+        }
     }
 }
 
 impl ISolver for Parser {
     fn process_line(&mut self, line: &str) {
         self.parse_mul_instructions(line);
+        self.parse_do_instructions(line);
+        self.parse_dont_instructions(line);
         let instructions = self.instructions.replace(BTreeSet::new());
         for instruction in instructions {
             self.process_instruction(&instruction);
