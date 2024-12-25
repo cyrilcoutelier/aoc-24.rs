@@ -71,8 +71,8 @@ struct MapData {
     origin: Coordinate,
 }
 
-struct MapSolver {
-    map: Vec<Vec<Tile>>,
+struct MapWalker<'a> {
+    map: &'a [Vec<Tile>],
     initial_position: Coordinate,
     guard: Guard,
     visited_set: HashSet<Coordinate>,
@@ -80,14 +80,18 @@ struct MapSolver {
     states_history: HashSet<Guard>,
 }
 
-impl MapSolver {
-    fn new(map_data: MapData) -> Self {
+impl<'a> MapWalker<'a> {
+    fn new(
+        map: &'a [Vec<Tile>],
+        initial_position: Coordinate,
+        added_obstruction: Option<Coordinate>,
+    ) -> Self {
         Self {
-            map: map_data.map,
-            initial_position: map_data.origin,
-            guard: Guard::new(map_data.origin),
+            map,
+            initial_position,
+            guard: Guard::new(initial_position),
             visited_set: HashSet::new(),
-            added_obstruction: None,
+            added_obstruction,
             states_history: HashSet::new(),
         }
     }
@@ -97,13 +101,7 @@ impl MapSolver {
     fn solve(&mut self) -> String {
         self.walk_map();
 
-        let candidate_list: Vec<Coordinate> = self
-            .visited_set
-            .iter()
-            .filter(|&x| *x != self.initial_position)
-            .copied()
-            .collect();
-
+        let candidate_list = self.get_visited_position_without_initial();
         let nb_possible_obstructions = candidate_list
             .iter()
             .filter(|&x| {
@@ -185,6 +183,14 @@ impl MapSolver {
         let row = self.map.get(y)?;
         row.get(x).copied()
     }
+
+    fn get_visited_position_without_initial(&self) -> Vec<Coordinate> {
+        self.visited_set
+            .iter()
+            .filter(|&x| *x != self.initial_position)
+            .copied()
+            .collect()
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -227,8 +233,8 @@ where
     for line in lines {
         parser.parse_line(&line);
     }
-    let map_data = parser.get_map_data();
+    let MapData { map, origin } = parser.get_map_data();
 
-    let mut map_solver = MapSolver::new(map_data);
+    let mut map_solver = MapWalker::new(&map, origin, None);
     map_solver.solve()
 }
