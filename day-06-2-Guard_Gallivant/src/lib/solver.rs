@@ -73,29 +73,70 @@ struct MapData {
 
 struct MapSolver {
     map: Vec<Vec<Tile>>,
+    initial_position: Coordinate,
     guard: Guard,
     visited_set: HashSet<Coordinate>,
+    added_obstruction: Option<Coordinate>,
+    states_history: HashSet<Guard>,
 }
 
 impl MapSolver {
     fn new(map_data: MapData) -> Self {
         Self {
             map: map_data.map,
+            initial_position: map_data.origin,
             guard: Guard::new(map_data.origin),
             visited_set: HashSet::new(),
+            added_obstruction: None,
+            states_history: HashSet::new(),
         }
     }
 
+    /// Takes slightly less than a second compiled on release mode on my M1
+    /// Possible optimization would be to use rayon to parallelize the search
     fn solve(&mut self) -> String {
         self.walk_map();
-        self.visited_set.len().to_string()
+
+        let candidate_list: Vec<Coordinate> = self
+            .visited_set
+            .iter()
+            .filter(|&x| *x != self.initial_position)
+            .copied()
+            .collect();
+
+        let nb_possible_obstructions = candidate_list
+            .iter()
+            .filter(|&x| {
+                self.added_obstruction = Some(*x);
+                self.walk_map()
+            })
+            .count();
+
+        nb_possible_obstructions.to_string()
     }
 
-    fn walk_map(&mut self) {
+    /// Returns true if stuck in a loop, false if went outside of the map
+    fn walk_map(&mut self) -> bool {
+        self.reset_guard();
+
         while self.is_guard_in_map() {
-            self.update_visited();
+            if self.added_obstruction.is_none() {
+                self.update_visited();
+            } else {
+                if self.states_history.contains(&self.guard) {
+                    return true;
+                }
+                self.states_history.insert(self.guard);
+            }
+
             self.update_position();
         }
+        false
+    }
+
+    fn reset_guard(&mut self) {
+        self.guard = Guard::new(self.initial_position);
+        self.states_history.clear();
     }
 
     fn is_guard_in_map(&self) -> bool {
@@ -127,6 +168,12 @@ impl MapSolver {
     }
 
     fn get_tile(&self, position: Coordinate) -> Option<Tile> {
+        if let Some(obstruction) = self.added_obstruction {
+            if obstruction == position {
+                return Some(Tile::Wall);
+            }
+        }
+
         let Ok(x) = usize::try_from(position.x) else {
             // x is below 0
             return None;
@@ -140,6 +187,7 @@ impl MapSolver {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 struct Guard {
     position: Coordinate,
     direction_index: usize,
