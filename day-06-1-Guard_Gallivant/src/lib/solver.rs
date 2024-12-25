@@ -73,8 +73,7 @@ struct MapData {
 
 struct MapSolver {
     map: Vec<Vec<Tile>>,
-    position: Coordinate,
-    direction_index: usize,
+    guard: Guard,
     visited_set: HashSet<Coordinate>,
 }
 
@@ -82,22 +81,25 @@ impl MapSolver {
     fn new(map_data: MapData) -> Self {
         Self {
             map: map_data.map,
-            position: map_data.origin,
-            direction_index: 0,
+            guard: Guard::new(map_data.origin),
             visited_set: HashSet::new(),
         }
     }
 
     fn solve(&mut self) -> String {
-        while self.is_in_map() {
-            self.update_visited();
-            self.update_position();
-        }
+        self.walk_map();
         self.visited_set.len().to_string()
     }
 
-    fn is_in_map(&self) -> bool {
-        self.is_position_in_map(self.position)
+    fn walk_map(&mut self) {
+        while self.is_guard_in_map() {
+            self.update_visited();
+            self.update_position();
+        }
+    }
+
+    fn is_guard_in_map(&self) -> bool {
+        self.is_position_in_map(self.guard.position)
     }
 
     fn is_position_in_map(&self, position: Coordinate) -> bool {
@@ -108,20 +110,19 @@ impl MapSolver {
     }
 
     fn update_visited(&mut self) {
-        self.visited_set.insert(self.position);
+        self.visited_set.insert(self.guard.position);
     }
 
     fn update_position(&mut self) {
-        if self.is_facing_wall() {
-            self.turn();
+        if self.is_guard_facing_wall() {
+            self.guard.turn();
         } else {
-            self.move_forward();
+            self.guard.move_forward();
         }
     }
 
-    fn is_facing_wall(&self) -> bool {
-        let direction = self.get_direction();
-        let facing_position = add_coordinates(self.position, direction);
+    fn is_guard_facing_wall(&self) -> bool {
+        let facing_position = self.guard.get_facing_position();
         matches!(self.get_tile(facing_position), Some(Tile::Wall))
     }
 
@@ -137,14 +138,32 @@ impl MapSolver {
         let row = self.map.get(y)?;
         row.get(x).copied()
     }
+}
+
+struct Guard {
+    position: Coordinate,
+    direction_index: usize,
+}
+
+impl Guard {
+    fn new(position: Coordinate) -> Self {
+        Self {
+            position,
+            direction_index: 0,
+        }
+    }
 
     fn turn(&mut self) {
         self.direction_index = (self.direction_index + 1) % DIRECTIONS_LIST.len();
     }
 
     fn move_forward(&mut self) {
+        self.position = self.get_facing_position();
+    }
+
+    fn get_facing_position(&self) -> Coordinate {
         let direction = self.get_direction();
-        self.position = add_coordinates(self.position, direction);
+        add_coordinates(self.position, direction)
     }
 
     fn get_direction(&self) -> Coordinate {
