@@ -39,6 +39,6 @@ mod process_lines {
         let result = process_lines(input.iter().map(|x| x.to_string()));
 
         // Then
-        assert_eq!(result, "143");
+        assert_eq!(result, "123");
     }
 }

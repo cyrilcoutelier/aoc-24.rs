@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{cmp::Ordering, collections::BTreeMap};
 
 use crate::common::{self, ISolver};
 
@@ -31,8 +31,9 @@ impl Solver {
     }
 
     fn process_update(&mut self, line: &str) {
-        let update: Vec<i32> = line.split(',').map(|x| x.parse::<i32>().unwrap()).collect();
-        if self.is_correctly_ordered(&update) {
+        let mut update: Vec<i32> = line.split(',').map(|x| x.parse::<i32>().unwrap()).collect();
+        if !self.is_correctly_ordered(&update) {
+            self.fix_update_ordering(&mut update);
             self.result += get_middle_number(&update);
         }
     }
@@ -49,6 +50,24 @@ impl Solver {
                 true
             }
         })
+    }
+
+    fn fix_update_ordering(&mut self, update: &mut [i32]) {
+        update.sort_by(|a, b| {
+            if let Some(previous_list_a) = self.previous_map.get(a) {
+                if previous_list_a.contains(b) {
+                    return Ordering::Greater;
+                }
+            }
+
+            if let Some(previous_list_b) = self.previous_map.get(b) {
+                if previous_list_b.contains(a) {
+                    return Ordering::Less;
+                }
+            }
+
+            Ordering::Equal
+        });
     }
 }
 
