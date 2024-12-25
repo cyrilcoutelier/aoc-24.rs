@@ -96,23 +96,6 @@ impl<'a> MapWalker<'a> {
         }
     }
 
-    /// Takes slightly less than a second compiled on release mode on my M1
-    /// Possible optimization would be to use rayon to parallelize the search
-    fn solve(&mut self) -> String {
-        self.walk_map();
-
-        let candidate_list = self.get_visited_position_without_initial();
-        let nb_possible_obstructions = candidate_list
-            .iter()
-            .filter(|&x| {
-                self.added_obstruction = Some(*x);
-                self.walk_map()
-            })
-            .count();
-
-        nb_possible_obstructions.to_string()
-    }
-
     /// Returns true if stuck in a loop, false if went outside of the map
     fn walk_map(&mut self) -> bool {
         self.reset_guard();
@@ -235,6 +218,19 @@ where
     }
     let MapData { map, origin } = parser.get_map_data();
 
-    let mut map_solver = MapWalker::new(&map, origin, None);
-    map_solver.solve()
+    let mut initial_map = MapWalker::new(&map, origin, None);
+    initial_map.walk_map();
+    let candidate_list = initial_map.get_visited_position_without_initial();
+
+    // Takes slightly less than a second compiled on release mode on my M1
+    // Possible optimization would be to use rayon to parallelize the search
+    let nb_possible_obstructions = candidate_list
+        .iter()
+        .filter(|&blocked_position| {
+            let mut candidate_map = MapWalker::new(&map, origin, Some(*blocked_position));
+            candidate_map.walk_map()
+        })
+        .count();
+
+    nb_possible_obstructions.to_string()
 }
