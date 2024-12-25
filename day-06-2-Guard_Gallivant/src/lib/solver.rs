@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use std::{collections::HashSet, hash::Hash};
 
 #[derive(Copy, Clone)]
@@ -222,10 +223,9 @@ where
     initial_map.walk_map();
     let candidate_list = initial_map.get_visited_position_without_initial();
 
-    // Takes slightly less than a second compiled on release mode on my M1
-    // Possible optimization would be to use rayon to parallelize the search
+    // Using multi-threading went from 1.3s to 0.3s on my M1
     let nb_possible_obstructions = candidate_list
-        .iter()
+        .par_iter()
         .filter(|&blocked_position| {
             let mut candidate_map = MapWalker::new(&map, origin, Some(*blocked_position));
             candidate_map.walk_map()
